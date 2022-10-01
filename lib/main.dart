@@ -14,8 +14,8 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'To Do List',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
-        bottomAppBarColor: Colors.blue,
+        primarySwatch: Colors.orange,
+        bottomAppBarColor: Colors.orangeAccent,
       ),
       home: const Home(),
     );

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../classes/database.dart';
+import 'add_edit_todo.dart';
+import 'package:intl/intl.dart';
 
 class Home extends StatefulWidget {
   const Home({Key? key}) : super(key: key);
@@ -10,93 +12,88 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   late Database _database;
-  final TextEditingController _todoController = TextEditingController();
-  final TextEditingController _todoEditController = TextEditingController();
-  final FocusNode _todoFocus = FocusNode();
-  final FocusNode _todoEditFocus = FocusNode();
 
   Future<List<Todo>> _loadTodos() async {
     await DatabaseFileRoutines().readTodos().then((value) {
       _database = databaseFromJson(value);
+      _database.todo
+          .sort((task1, task2) => task2.dueDate.compareTo(task1.dueDate));
     });
     return _database.todo;
   }
 
-  Future _addTodoDialog() async {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Add To-do'),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10.0),
-          ),
-          elevation: 4,
-          contentPadding: const EdgeInsets.all(16.0),
-          content: TextField(
-            controller: _todoController,
-            decoration: const InputDecoration(
-                icon: Icon(Icons.note_alt),
-                labelText: 'Add your to-do item...'),
-            focusNode: _todoFocus,
-            textCapitalization: TextCapitalization.sentences,
-            autofocus: true,
-            maxLines: null,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                if (_todoController.text.isNotEmpty) {
-                  final Todo todoItem =
-                      Todo(todo: _todoController.text);
-                  setState(() {
-                    _database.todo.add(todoItem);
-                  });
-                  DatabaseFileRoutines().writeTodos(databaseToJson(_database));
-                  Navigator.pop(context);
-                  _todoController.clear();
-                } else {
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Add'),
-            ),
-          ],
-        );
-      },
-    );
+  Future<void> _addAndSaveTodos(Todo todo) async {
+    setState(() {
+      _database.todo.add(todo);
+    });
+    DatabaseFileRoutines().writeTodos(databaseToJson(_database));
   }
 
-  @override
-  void dispose() {
-    _todoController.dispose();
-    _todoEditController.dispose();
-    super.dispose();
+  Future<void> _updateAndSaveTodos(TodoEdit todoEdit, int index) async {
+    setState(() {
+      _database.todo[index] = todoEdit.todo;
+    });
+    DatabaseFileRoutines().writeTodos(databaseToJson(_database));
+  }
+
+  Future<void> _deleteAndSaveTodos(index) async {
+    setState(() {
+      _database.todo.removeAt(index);
+    });
+    DatabaseFileRoutines().writeTodos(databaseToJson(_database));
+  }
+
+  Future<void> addOrEditTodo(
+      {required bool add, required Todo todo, required int index}) async {
+    TodoEdit todoEdit = TodoEdit(todo: todo, action: '');
+    todoEdit = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            AddOrEditTodo(add: add, todoEdit: todoEdit, index: index),
+      ),
+    );
+    switch (todoEdit.action) {
+      case 'Save':
+        if (add) {
+          _addAndSaveTodos(todoEdit.todo);
+        } else {
+          _updateAndSaveTodos(todoEdit, index);
+        }
+        break;
+      case 'Cancel':
+        break;
+      default:
+        break;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Your To-dos'),
+        title: const Text('Your ToDos'),
       ),
       body: FutureBuilder(
         initialData: const [],
         future: _loadTodos(),
         builder: (BuildContext context, AsyncSnapshot snapshot) {
           return !snapshot.hasData
-              ? const CircularProgressIndicator()
+              ? const Center(
+                  child: CircularProgressIndicator(),
+                )
               : ListView.builder(
-                  shrinkWrap: true,
                   itemCount: snapshot.data.length,
                   itemBuilder: (BuildContext context, int index) {
+                    final leadingDay = DateFormat.E()
+                        .format(DateTime.parse(snapshot.data[index].dueDate));
+                    final leadingDate = DateFormat.d()
+                        .format(DateTime.parse(snapshot.data[index].dueDate));
+                    final leadingTime = DateFormat.Hm()
+                        .format(DateTime.parse(snapshot.data[index].dueTime));
                     return Dismissible(
                       onDismissed: (direction) {
-                        setState(() {
-                          _database.todo.removeAt(index);
-                        });
-                        DatabaseFileRoutines()
-                            .writeTodos(databaseToJson(_database));
+                        _deleteAndSaveTodos(index);
                       },
                       background: Container(
                         color: Colors.red,
@@ -111,6 +108,7 @@ class _HomeState extends State<Home> {
                           ],
                         ),
                       ),
+                      //Replace these with #slidable
                       secondaryBackground: Container(
                         padding: const EdgeInsets.all(10.0),
                         color: Colors.green,
@@ -124,7 +122,8 @@ class _HomeState extends State<Home> {
                           ],
                         ),
                       ),
-                      key: Key(snapshot.data[index].todo),
+                      key: Key(snapshot.data[index].id),
+                      confirmDismiss: _showConfirmDismissDialog,
                       child: Card(
                         elevation: 4,
                         margin: const EdgeInsets.all(6.0),
@@ -132,60 +131,38 @@ class _HomeState extends State<Home> {
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: ListTile(
-                          title: Text(snapshot.data[index].todo),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete),
-                            color: Colors.red,
-                            onPressed: () {
-                              setState(() {
-                                _database.todo.removeAt(index);
-                              });
-                              DatabaseFileRoutines()
-                                  .writeTodos(databaseToJson(_database));
-                            },
+                          leading: Column(
+                            children: [
+                              Text(
+                                '$leadingDay, $leadingDate',
+                                style: const TextStyle(
+                                  color: Colors.orange,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8.0),
+                              Text(
+                                leadingTime,
+                                style: const TextStyle(
+                                  color: Colors.orange,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
-                          onTap: () {
-                            showDialog(context: context, builder: (context) {
-                              Todo todo = Todo(todo: snapshot.data[index].todo);
-                              TodoEdit todoEdit = TodoEdit(todo);
-                              _todoEditController.text = todoEdit.todo.todo;
-                              return AlertDialog(
-                                title: const Text('Edit To Do'),
-                                elevation: 4,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10.0),
-                                ),
-                                contentPadding: const EdgeInsets.all(10.0),
-                                content: TextField(
-                                  controller: _todoEditController,
-                                  autofocus: true,
-                                  focusNode: _todoEditFocus,
-                                  decoration: const InputDecoration(
-                                    icon: Icon(Icons.note_alt),
-                                  ),
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.pop(context);
-                                      Todo todo = Todo(todo: _todoEditController.text);
-                                      todoEdit = TodoEdit(todo);
-                                      setState(() {
-                                        _database.todo[index] = todoEdit.todo;
-                                      });
-                                      DatabaseFileRoutines().writeTodos(databaseToJson(_database));
-                                    },
-                                    child: const Text('Save'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.pop(context);
-                                    },
-                                    child: const Text('Cancel'),
-                                  ),
-                                ],
-                              );
-                            });
+                          title: Text(
+                            snapshot.data[index].title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18.0,
+                            ),
+                          ),
+                          subtitle: Text(snapshot.data[index].task),
+                          onTap: () async {
+                            await addOrEditTodo(
+                                add: false,
+                                todo: snapshot.data[index],
+                                index: index);
                           },
                         ),
                       ),
@@ -196,8 +173,15 @@ class _HomeState extends State<Home> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await _addTodoDialog();
+        onPressed: () {
+          final Todo todo = Todo(
+            title: '',
+            dueDate: '',
+            dueTime: '',
+            id: '',
+            task: '',
+          );
+          addOrEditTodo(add: true, todo: todo, index: -1);
         },
         tooltip: 'Add to-do Item',
         child: const Icon(Icons.add),
@@ -209,5 +193,46 @@ class _HomeState extends State<Home> {
         ),
       ),
     );
+  }
+
+  Future<bool?> _showConfirmDismissDialog(DismissDirection direction) async {
+    bool? action;
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          contentPadding: const EdgeInsets.all(16.0),
+          title: const Text('Delete Todo'),
+          content: const Text('Are you sure you would like to delete?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                action = true;
+                //_deleteAndSaveTodos(index);
+                Navigator.of(context).pop();
+              },
+              child: const Text(
+                'Delete',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                action = false;
+                Navigator.of(context).pop();
+              },
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.green),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    return action;
   }
 }

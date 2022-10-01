@@ -10,7 +10,7 @@ class DatabaseFileRoutines {
 
   Future<File> get _localFile async {
     final path = await _localPath;
-    return File('$path/todolistl');
+    return File('$path/todolistz');
   }
 
   Future<File> writeTodos(String jsonTodo) async {
@@ -45,43 +45,60 @@ String databaseToJson(Database data) {
 class Database {
   final List<Todo> todo;
 
-
   Database({required this.todo});
 
   factory Database.fromJson(Map<String, dynamic> json) => Database(
-    todo: List<Todo>.from(
-      json["todos"].map(
+        todo: List<Todo>.from(
+          json["todos"].map(
             (x) => Todo.fromJson(x),
-      ),
-    ),
-  );
+          ),
+        ),
+      );
 
   Map<String, dynamic> toJson() => {
-    "todos": List<dynamic>.from(
-      todo.map(
+        "todos": List<dynamic>.from(
+          todo.map(
             (x) => x.toJson(),
-      ),
-    ),
-  };
+          ),
+        ),
+      };
 }
 
 class Todo {
-  final String todo;
+  final String task;
+  final String title;
+  final String dueDate;
+  final String dueTime;
+  final String id;
 
-  Todo({required this.todo});
+  Todo({
+    required this.title,
+    required this.dueDate,
+    required this.dueTime,
+    required this.id,
+    required this.task,
+  });
 
   factory Todo.fromJson(Map<String, dynamic> json) => Todo(
-    todo: json["todo"],
-  );
+        task: json["task"],
+        title: json["title"],
+        dueDate: json["dueDate"],
+        dueTime: json["dueTime"],
+        id: json["id"],
+      );
 
   Map<String, dynamic> toJson() => {
-    "todo": todo,
-  };
+        "task": task,
+        "title": title,
+        "dueDate": dueDate,
+        "dueTime": dueTime,
+        "id": id,
+      };
 }
 
 class TodoEdit {
-  final Todo todo;
+  Todo todo;
+  String action;
 
-  TodoEdit(this.todo);
-
+  TodoEdit({required this.todo, required this.action});
 }

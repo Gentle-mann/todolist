@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:intl/intl.dart';
+
 import '../classes/database.dart';
 import 'add_edit_todo.dart';
-import 'package:intl/intl.dart';
 
 class Home extends StatefulWidget {
   const Home({Key? key}) : super(key: key);
@@ -12,6 +14,7 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   late Database _database;
+  late bool isCompleted = false;
 
   Future<List<Todo>> _loadTodos() async {
     await DatabaseFileRoutines().readTodos().then((value) {
@@ -29,9 +32,9 @@ class _HomeState extends State<Home> {
     DatabaseFileRoutines().writeTodos(databaseToJson(_database));
   }
 
-  Future<void> _updateAndSaveTodos(TodoEdit todoEdit, int index) async {
+  Future<void> _updateAndSaveTodos(Todo todo, int index) async {
     setState(() {
-      _database.todo[index] = todoEdit.todo;
+      _database.todo[index] = todo;
     });
     DatabaseFileRoutines().writeTodos(databaseToJson(_database));
   }
@@ -58,7 +61,7 @@ class _HomeState extends State<Home> {
         if (add) {
           _addAndSaveTodos(todoEdit.todo);
         } else {
-          _updateAndSaveTodos(todoEdit, index);
+          _updateAndSaveTodos(todoEdit.todo, index);
         }
         break;
       case 'Cancel':
@@ -71,6 +74,7 @@ class _HomeState extends State<Home> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF6F6F6),
       appBar: AppBar(
         title: const Text('Your ToDos'),
       ),
@@ -78,60 +82,96 @@ class _HomeState extends State<Home> {
         initialData: const [],
         future: _loadTodos(),
         builder: (BuildContext context, AsyncSnapshot snapshot) {
-          return !snapshot.hasData
-              ? const Center(
-                  child: CircularProgressIndicator(),
-                )
-              : ListView.builder(
-                  itemCount: snapshot.data.length,
-                  itemBuilder: (BuildContext context, int index) {
-                    final leadingDay = DateFormat.E()
-                        .format(DateTime.parse(snapshot.data[index].dueDate));
-                    final leadingDate = DateFormat.d()
-                        .format(DateTime.parse(snapshot.data[index].dueDate));
-                    final leadingTime = DateFormat.Hm()
-                        .format(DateTime.parse(snapshot.data[index].dueTime));
-                    return Dismissible(
-                      onDismissed: (direction) {
-                        _deleteAndSaveTodos(index);
-                      },
-                      background: Container(
-                        color: Colors.red,
-                        padding: const EdgeInsets.all(10.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: const [
-                            Icon(
-                              Icons.delete,
-                              color: Colors.white,
-                            )
-                          ],
-                        ),
+          if (!snapshot.hasData) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          } else if (snapshot.data.isEmpty) {
+            return const Center(
+              child: Text(
+                'No Todos',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 24.0,
+                ),
+              ),
+            );
+          } else {
+            return ListView.builder(
+              physics: const BouncingScrollPhysics(),
+              itemCount: snapshot.data.length,
+              itemBuilder: (BuildContext context, int index) {
+                final leadingDay = DateFormat.E()
+                    .format(DateTime.parse(snapshot.data[index].dueDate));
+                final leadingDate = DateFormat.d()
+                    .format(DateTime.parse(snapshot.data[index].dueDate));
+                final leadingTime = DateFormat.Hm()
+                    .format(DateTime.parse(snapshot.data[index].dueTime));
+                bool newIsCompleted = snapshot.data[index].isCompleted;
+                return Card(
+                  elevation: 4,
+                  margin: const EdgeInsets.all(6.0),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16.0),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16.0),
+                    child: Slidable(
+                      //key: snapshot.data[index].id,
+                      startActionPane: ActionPane(
+                        motion: const DrawerMotion(),
+                        children: [
+                          SlidableAction(
+                            onPressed: (context) {
+                              _deleteAndSaveTodos(index);
+                            },
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            icon: Icons.delete,
+                            label: 'Delete',
+                          ),
+                        ],
                       ),
-                      //Replace these with #slidable
-                      secondaryBackground: Container(
-                        padding: const EdgeInsets.all(10.0),
-                        color: Colors.green,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: const [
-                            Icon(
-                              Icons.check,
-                              color: Colors.white,
-                            ),
-                          ],
-                        ),
+                      endActionPane: ActionPane(
+                        motion: const DrawerMotion(),
+                        children: [
+                          SlidableAction(
+                            onPressed: (context) {
+                              addOrEditTodo(
+                                add: false,
+                                todo: snapshot.data[index],
+                                index: index,
+                              );
+                            },
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            icon: Icons.edit,
+                            label: 'Edit',
+                          )
+                        ],
                       ),
-                      key: Key(snapshot.data[index].id),
-                      confirmDismiss: _showConfirmDismissDialog,
-                      child: Card(
-                        elevation: 4,
-                        margin: const EdgeInsets.all(6.0),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        child: ListTile(
-                          leading: Column(
+                      child: InkWell(
+                        onDoubleTap: () {
+                          addOrEditTodo(
+                            add: false,
+                            todo: snapshot.data[index],
+                            index: index,
+                          );
+                        },
+                        child: CheckboxListTile(
+                          enableFeedback: true,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16.0),
+                          ),
+                          dense: false,
+                          checkboxShape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6.0),
+                          ),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          selectedTileColor: Colors.blue.shade200,
+                          selected: snapshot.data[index].isCompleted,
+                          secondary: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
                                 '$leadingDay, $leadingDate',
@@ -150,25 +190,50 @@ class _HomeState extends State<Home> {
                               ),
                             ],
                           ),
-                          title: Text(
-                            snapshot.data[index].title,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18.0,
-                            ),
+                          title: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                snapshot.data[index].title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18.0,
+                                  color: Colors.orange,
+                                ),
+                              ),
+                              const SizedBox(height: 8.0),
+                            ],
                           ),
-                          subtitle: Text(snapshot.data[index].task),
-                          onTap: () async {
-                            await addOrEditTodo(
-                                add: false,
-                                todo: snapshot.data[index],
-                                index: index);
+                          subtitle: Text(
+                            snapshot.data[index].task,
+                            style: const TextStyle(height: 2.0),
+                          ),
+                          value: newIsCompleted,
+                          onChanged: (newValue) async {
+                            setState(() {
+                              newIsCompleted = newValue!;
+                              Todo todo = Todo(
+                                isCompleted: newIsCompleted,
+                                title: snapshot.data[index].title,
+                                dueDate: snapshot.data[index].dueDate,
+                                dueTime: snapshot.data[index].dueTime,
+                                id: snapshot.data[index].id,
+                                task: snapshot.data[index].task,
+                              );
+                              _updateAndSaveTodos(todo, index);
+                            });
+                            if (newIsCompleted) {
+                              await _showDeleteWhenCheckedDialog(index);
+                            }
                           },
                         ),
                       ),
-                    );
-                  },
+                    ),
+                  ),
                 );
+              },
+            );
+          }
         },
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
@@ -180,6 +245,7 @@ class _HomeState extends State<Home> {
             dueTime: '',
             id: '',
             task: '',
+            isCompleted: false,
           );
           addOrEditTodo(add: true, todo: todo, index: -1);
         },
@@ -195,23 +261,22 @@ class _HomeState extends State<Home> {
     );
   }
 
-  Future<bool?> _showConfirmDismissDialog(DismissDirection direction) async {
-    bool? action;
+  Future<void> _showDeleteWhenCheckedDialog(index) async {
     await showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8.0),
+            borderRadius: BorderRadius.circular(12.0),
           ),
           contentPadding: const EdgeInsets.all(16.0),
-          title: const Text('Delete Todo'),
-          content: const Text('Are you sure you would like to delete?'),
+          title: const Text('Task Marked Complete!'),
+          content: const Text('Would you like to delete task?'),
           actions: [
             TextButton(
               onPressed: () {
-                action = true;
-                //_deleteAndSaveTodos(index);
+                _deleteAndSaveTodos(index);
                 Navigator.of(context).pop();
               },
               child: const Text(
@@ -221,11 +286,10 @@ class _HomeState extends State<Home> {
             ),
             TextButton(
               onPressed: () {
-                action = false;
                 Navigator.of(context).pop();
               },
               child: const Text(
-                'Cancel',
+                'Keep',
                 style: TextStyle(color: Colors.green),
               ),
             ),
@@ -233,6 +297,5 @@ class _HomeState extends State<Home> {
         );
       },
     );
-    return action;
   }
 }

@@ -1,6 +1,7 @@
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
+
+import 'package:path_provider/path_provider.dart';
 
 class DatabaseFileRoutines {
   Future<String> get _localPath async {
@@ -10,7 +11,7 @@ class DatabaseFileRoutines {
 
   Future<File> get _localFile async {
     final path = await _localPath;
-    return File('$path/todolistz');
+    return File('$path/todolist9');
   }
 
   Future<File> writeTodos(String jsonTodo) async {
@@ -70,8 +71,10 @@ class Todo {
   final String dueDate;
   final String dueTime;
   final String id;
+  final bool isCompleted;
 
   Todo({
+    required this.isCompleted,
     required this.title,
     required this.dueDate,
     required this.dueTime,
@@ -85,6 +88,7 @@ class Todo {
         dueDate: json["dueDate"],
         dueTime: json["dueTime"],
         id: json["id"],
+        isCompleted: json["isCompleted"],
       );
 
   Map<String, dynamic> toJson() => {
@@ -93,6 +97,7 @@ class Todo {
         "dueDate": dueDate,
         "dueTime": dueTime,
         "id": id,
+        "isCompleted": isCompleted,
       };
 }
 

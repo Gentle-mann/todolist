@@ -1,10 +1,9 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../classes/database.dart';
-
-import 'package:intl/intl.dart';
 
 class AddOrEditTodo extends StatefulWidget {
   const AddOrEditTodo(
@@ -85,6 +84,7 @@ class _AddOrEditTodoState extends State<AddOrEditTodo> {
       _selectedDate = DateTime.parse(_todoEdit.todo.dueDate);
     }
   }
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -185,6 +185,7 @@ class _AddOrEditTodoState extends State<AddOrEditTodo> {
               dueTime: _selectedDate.toString(),
               id: id,
               task: _taskController.text,
+              isCompleted: _todoEdit.todo.isCompleted,
             );
             Navigator.pop(context, _todoEdit);
           }
@@ -226,6 +227,11 @@ class _AddOrEditTodoState extends State<AddOrEditTodo> {
       textInputAction: TextInputAction.next,
       focusNode: _titleFocus,
       controller: _titleController,
+      style: const TextStyle(
+        fontSize: 18.0,
+        fontWeight: FontWeight.w500,
+        color: Colors.orange,
+      ),
       decoration: const InputDecoration(
         icon: Icon(Icons.title),
         border: OutlineInputBorder(),

@@ -6,12 +6,12 @@ import 'package:intl/intl.dart';
 import '../classes/database.dart';
 
 class AddOrEditTodo extends StatefulWidget {
-  const AddOrEditTodo(
-      {Key? key,
-      required this.add,
-      required this.todoEdit,
-      required this.index})
-      : super(key: key);
+  const AddOrEditTodo({
+    Key? key,
+    required this.add,
+    required this.todoEdit,
+    required this.index,
+  }) : super(key: key);
   final bool add;
   final TodoEdit todoEdit;
   final int index;
@@ -28,6 +28,7 @@ class _AddOrEditTodoState extends State<AddOrEditTodo> {
   final FocusNode _taskFocus = FocusNode();
   late DateTime _selectedDate;
   late TodoEdit _todoEdit;
+  late bool shouldNotify;
 
   Future<DateTime> _showDatePicker(DateTime date) async {
     DateTime? pickedDate = await showDatePicker(
@@ -76,9 +77,11 @@ class _AddOrEditTodoState extends State<AddOrEditTodo> {
     _todoEdit.todo = widget.todoEdit.todo;
     if (widget.add) {
       _selectedDate = DateTime.now();
+      shouldNotify = false;
       _taskController.text = '';
       _titleController.text = '';
     } else {
+      shouldNotify = _todoEdit.todo.shouldNotify;
       _taskController.text = _todoEdit.todo.task;
       _titleController.text = _todoEdit.todo.title;
       _selectedDate = DateTime.parse(_todoEdit.todo.dueDate);
@@ -126,13 +129,30 @@ class _AddOrEditTodoState extends State<AddOrEditTodo> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Due date',
-                        style: TextStyle(
-                          fontSize: 20.0,
-                          color: Colors.deepOrangeAccent,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Row(
+                        children: [
+                          buildCheckbox(),
+                          const SizedBox(width: 4.0),
+                          const Text(
+                            'Enable Notification',
+                            style: TextStyle(fontSize: 16.0),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: const [
+                          Text(
+                            'Due date',
+                            style: TextStyle(
+                              fontSize: 16.0,
+                              color: Colors.deepOrangeAccent,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(Icons.calendar_today,
+                              size: 20.0, color: Colors.orange),
+                        ],
                       ),
                       buildDateButton(),
                     ],
@@ -141,17 +161,28 @@ class _AddOrEditTodoState extends State<AddOrEditTodo> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Due time',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20.0,
-                          color: Colors.deepOrangeAccent,
-                        ),
+                      Row(
+                        children: const [
+                          Text(
+                            'Due time',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16.0,
+                              color: Colors.deepOrangeAccent,
+                            ),
+                          ),
+                          SizedBox(width: 8.0),
+                          Icon(
+                            Icons.access_time,
+                            size: 20.0,
+                            color: Colors.orange,
+                          ),
+                        ],
                       ),
                       buildTimeButton(),
                     ],
                   ),
+                  //const SizedBox(height: 24.0),
                   const SizedBox(height: 24.0),
                   buildTitleField(),
                   const SizedBox(height: 12.0),
@@ -165,6 +196,16 @@ class _AddOrEditTodoState extends State<AddOrEditTodo> {
         ),
       ),
     );
+  }
+
+  Checkbox buildCheckbox() {
+    return Checkbox(
+        value: shouldNotify,
+        onChanged: (value) {
+          setState(() {
+            shouldNotify = value!;
+          });
+        });
   }
 
   SizedBox buildSaveButton() {
@@ -186,6 +227,7 @@ class _AddOrEditTodoState extends State<AddOrEditTodo> {
               id: id,
               task: _taskController.text,
               isCompleted: _todoEdit.todo.isCompleted,
+              shouldNotify: shouldNotify,
             );
             Navigator.pop(context, _todoEdit);
           }
@@ -222,7 +264,7 @@ class _AddOrEditTodoState extends State<AddOrEditTodo> {
 //add validator
   TextFormField buildTitleField() {
     return TextFormField(
-      autofocus: true,
+      autofocus: false,
       textCapitalization: TextCapitalization.words,
       textInputAction: TextInputAction.next,
       focusNode: _titleFocus,
@@ -256,18 +298,21 @@ class _AddOrEditTodoState extends State<AddOrEditTodo> {
   ElevatedButton buildTimeButton() {
     return ElevatedButton(
       style: ButtonStyle(
-        fixedSize: MaterialStateProperty.all(const Size.fromHeight(64.0)),
+        fixedSize: MaterialStateProperty.all(const Size.fromHeight(40.0)),
+        backgroundColor: MaterialStateProperty.all(Colors.orange),
       ),
-      onPressed: () async {
-        DateTime chosenTime = await _showTimePicker(_selectedDate);
-        setState(() {
-          _selectedDate = chosenTime;
-        });
-      },
+      onPressed: shouldNotify
+          ? () async {
+              DateTime chosenTime = await _showTimePicker(_selectedDate);
+              setState(() {
+                _selectedDate = chosenTime;
+              });
+            }
+          : null,
       child: Row(
         children: [
           Text(
-            DateFormat.Hm().format(_selectedDate),
+            DateFormat.jm().format(_selectedDate),
           ),
           const Icon(Icons.arrow_drop_down),
         ],
@@ -278,14 +323,17 @@ class _AddOrEditTodoState extends State<AddOrEditTodo> {
   ElevatedButton buildDateButton() {
     return ElevatedButton(
       style: ButtonStyle(
-        fixedSize: MaterialStateProperty.all(const Size.fromHeight(64.0)),
+        fixedSize: MaterialStateProperty.all(const Size.fromHeight(40.0)),
+        backgroundColor: MaterialStateProperty.all(Colors.orange),
       ),
-      onPressed: () async {
-        DateTime chosenDate = await _showDatePicker(_selectedDate);
-        setState(() {
-          _selectedDate = chosenDate;
-        });
-      },
+      onPressed: shouldNotify
+          ? () async {
+              DateTime chosenDate = await _showDatePicker(_selectedDate);
+              setState(() {
+                _selectedDate = chosenDate;
+              });
+            }
+          : null,
       child: Row(
         children: [
           Text(DateFormat.yMMMEd().format(_selectedDate)),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:todolist/services/notifications_service.dart';
 
 import '../classes/database.dart';
 import 'add_edit_todo.dart';
@@ -15,6 +17,7 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   late Database _database;
   late bool isCompleted = false;
+  final NotificationService notificationService = NotificationService();
 
   Future<List<Todo>> _loadTodos() async {
     await DatabaseFileRoutines().readTodos().then((value) {
@@ -39,7 +42,7 @@ class _HomeState extends State<Home> {
     DatabaseFileRoutines().writeTodos(databaseToJson(_database));
   }
 
-  Future<void> _deleteAndSaveTodos(index) async {
+  Future<void> _deleteAndSaveTodos(int index) async {
     setState(() {
       _database.todo.removeAt(index);
     });
@@ -63,6 +66,9 @@ class _HomeState extends State<Home> {
         } else {
           _updateAndSaveTodos(todoEdit.todo, index);
         }
+        if (todoEdit.todo.shouldNotify) {
+          await _sendNotification(todoEdit);
+        }
         break;
       case 'Cancel':
         break;
@@ -71,12 +77,55 @@ class _HomeState extends State<Home> {
     }
   }
 
+  Future<void> _sendNotification(TodoEdit todoEdit) async {
+    final dueDate = DateTime.parse(todoEdit.todo.dueDate);
+    final dueTime = DateTime.parse(todoEdit.todo.dueTime);
+    final scheduledDate = tz.TZDateTime.from(
+      DateTime(dueDate.year, dueDate.month, dueDate.day, dueTime.hour,
+              dueDate.minute)
+          .subtract(
+        const Duration(hours: 1),
+      ),
+      tz.local,
+    );
+    await notificationService.showScheduledNotifications(
+      id: int.parse(todoEdit.todo.id),
+      title: 'Task Almost Due',
+      body:
+          'Your task, ${todoEdit.todo.title}, is due at ${DateFormat.Hm().format(dueTime)}!',
+      scheduledDate: scheduledDate,
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    notificationService.initialize();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
       appBar: AppBar(
-        title: const Text('Your ToDos'),
+        title: const Text('Your ToDos', style: TextStyle(color: Colors.orange)),
+        elevation: 0.0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(16.0),
+          child: Container(),
+        ),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.orange,
+                Colors.orange.shade50,
+              ],
+            ),
+          ),
+        ),
       ),
       body: FutureBuilder(
         initialData: const [],
@@ -105,7 +154,7 @@ class _HomeState extends State<Home> {
                     .format(DateTime.parse(snapshot.data[index].dueDate));
                 final leadingDate = DateFormat.d()
                     .format(DateTime.parse(snapshot.data[index].dueDate));
-                final leadingTime = DateFormat.Hm()
+                final leadingTime = DateFormat.jm()
                     .format(DateTime.parse(snapshot.data[index].dueTime));
                 bool newIsCompleted = snapshot.data[index].isCompleted;
                 return Card(
@@ -117,7 +166,6 @@ class _HomeState extends State<Home> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16.0),
                     child: Slidable(
-                      //key: snapshot.data[index].id,
                       startActionPane: ActionPane(
                         motion: const DrawerMotion(),
                         children: [
@@ -159,7 +207,6 @@ class _HomeState extends State<Home> {
                           );
                         },
                         child: CheckboxListTile(
-                          enableFeedback: true,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16.0),
                           ),
@@ -219,6 +266,7 @@ class _HomeState extends State<Home> {
                                 dueTime: snapshot.data[index].dueTime,
                                 id: snapshot.data[index].id,
                                 task: snapshot.data[index].task,
+                                shouldNotify: snapshot.data[index].shouldNotify,
                               );
                               _updateAndSaveTodos(todo, index);
                             });
@@ -236,7 +284,7 @@ class _HomeState extends State<Home> {
           }
         },
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           final Todo todo = Todo(
@@ -246,16 +294,27 @@ class _HomeState extends State<Home> {
             id: '',
             task: '',
             isCompleted: false,
+            shouldNotify: false,
           );
           addOrEditTodo(add: true, todo: todo, index: -1);
         },
         tooltip: 'Add to-do Item',
         child: const Icon(Icons.add),
       ),
-      bottomNavigationBar: const BottomAppBar(
-        shape: CircularNotchedRectangle(),
-        child: Padding(
-          padding: EdgeInsets.all(24.0),
+      bottomNavigationBar: BottomAppBar(
+        elevation: 0.0,
+        child: Container(
+          height: 40.0,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.bottomCenter,
+              end: Alignment.topCenter,
+              colors: [
+                Colors.orange,
+                Colors.orange.shade50,
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -298,4 +357,5 @@ class _HomeState extends State<Home> {
       },
     );
   }
+
 }

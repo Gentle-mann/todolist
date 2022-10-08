@@ -11,7 +11,7 @@ class DatabaseFileRoutines {
 
   Future<File> get _localFile async {
     final path = await _localPath;
-    return File('$path/todolist9');
+    return File('$path/todolist11');
   }
 
   Future<File> writeTodos(String jsonTodo) async {
@@ -72,8 +72,10 @@ class Todo {
   final String dueTime;
   final String id;
   final bool isCompleted;
+  final bool shouldNotify;
 
   Todo({
+    required this.shouldNotify,
     required this.isCompleted,
     required this.title,
     required this.dueDate,
@@ -89,6 +91,7 @@ class Todo {
         dueTime: json["dueTime"],
         id: json["id"],
         isCompleted: json["isCompleted"],
+        shouldNotify: json["shouldNotify"],
       );
 
   Map<String, dynamic> toJson() => {
@@ -98,6 +101,7 @@ class Todo {
         "dueTime": dueTime,
         "id": id,
         "isCompleted": isCompleted,
+        "shouldNotify": shouldNotify,
       };
 }
 
